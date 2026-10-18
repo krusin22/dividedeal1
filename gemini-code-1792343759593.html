@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>เกมคูณหาร: สุ่มสมบัติ 3 กล่อง (พร้อมสัตว์น้อยน่ารัก)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Mali', cursive; background-color: #f0f9ff; touch-action: manipulation; }
+        
+        .input-box {
+            width: 50px; height: 50px; text-align: center; border: 2px dashed #93c5fd;
+            border-radius: 8px; color: #1e3a8a; outline: none; transition: all 0.2s;
+            font-size: 22px; font-weight: bold;
+        }
+        @media (min-width: 768px) { .input-box { width: 70px; height: 60px; font-size: 28px; } }
+        .input-box:focus { border-color: #3b82f6; border-style: solid; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); }
+        
+        .correct-anim { animation: bounce 0.5s; border-color: #22c55e !important; border-style: solid !important; background-color: #dcfce3; }
+        .wrong-anim { animation: shake 0.4s; border-color: #ef4444 !important; border-style: solid !important; background-color: #fee2e2; }
+        
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        @keyframes pop { 0% { transform: scale(0.8); opacity: 0;} 100% { transform: scale(1); opacity: 1;} }
+
+        #time-bar { transition: width 1s linear, background-color 0.5s ease; }
+        
+        /* อนิเมชั่นกล่องเด้ง */
+        .gift-box { transition: transform 0.2s; }
+        .gift-box:hover { transform: scale(1.15) !important; }
+        .gift-bounce { animation: giftBounce 1s infinite alternate ease-in-out; }
+        @keyframes giftBounce { 0% { transform: translateY(0); } 100% { transform: translateY(-15px); } }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-4 px-2 sm:py-8 sm:px-4">
+
+    <!-- ส่วนหัว -->
+    <div class="text-center mb-4 sm:mb-6">
+        <h1 class="text-3xl sm:text-4xl font-bold text-blue-800 mb-1 sm:mb-2">คูณหาร: เลือกกล่องสมบัติ!</h1>
+    </div>
+
+    <!-- กระดานเกม -->
+    <div class="bg-white p-4 sm:p-8 rounded-2xl shadow-xl border-4 border-blue-100 w-full max-w-2xl relative">
+        
+        <!-- แถบข้อมูล -->
+        <div class="flex flex-wrap justify-between items-center mb-4 border-b-2 border-dashed border-gray-200 pb-4 gap-3 text-lg sm:text-xl font-bold text-gray-700">
+            <div>พลังชีวิต: <span id="lives-display" class="tracking-widest">❤️❤️❤️</span></div>
+            <div>เวลา: <span id="time-text" class="text-red-500">30</span> วิ</div>
+            <div>คะแนน: <span id="score" class="text-green-600">0</span></div>
+        </div>
+
+        <div class="w-full bg-gray-200 rounded-full h-3 mb-4 overflow-hidden relative">
+            <div id="time-bar" class="bg-green-500 h-3 rounded-full" style="width: 100%;"></div>
+        </div>
+
+        <div id="event-msg" class="hidden text-center text-orange-500 font-bold text-lg mb-2 animate-pulse"></div>
+
+        <div class="text-center mb-6 sm:mb-8 mt-4">
+            <div class="text-4xl sm:text-5xl font-bold text-blue-900 bg-blue-50 py-3 sm:py-4 rounded-xl border-2 border-blue-200" id="problem-display"></div>
+        </div>
+
+        <div class="flex justify-end mb-2">
+            <button onclick="useHint()" id="hint-btn" class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-4 py-2 rounded-full font-bold shadow-md transition transform hover:scale-105">
+                💡 คำใบ้ (3)
+            </button>
+        </div>
+
+        <div class="space-y-4 sm:space-y-6 text-2xl sm:text-3xl text-gray-800" id="step-container">
+            <div class="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4 bg-gray-50 p-4 rounded-lg sm:bg-transparent sm:p-0">
+                <span class="font-bold text-orange-500 w-full sm:w-28 text-center sm:text-left text-xl sm:text-2xl mt-1">เนื่องจาก</span>
+                <div class="flex items-center justify-center gap-3">
+                    <span id="step1-divisor" class="font-bold text-blue-700 min-w-[30px] text-center"></span>
+                    <span>×</span>
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" id="step1-ans" class="input-box" placeholder="?">
+                    <span>=</span>
+                    <span id="step1-dividend" class="font-bold text-blue-700 min-w-[40px] text-center"></span>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center sm:items-start gap-2 sm:gap-4 bg-gray-50 p-4 rounded-lg sm:bg-transparent sm:p-0">
+                <span class="font-bold text-green-500 w-full sm:w-28 text-center sm:text-left text-xl sm:text-2xl mt-1">ดังนั้น</span>
+                <div class="flex items-center justify-center gap-3">
+                    <span id="step2-dividend" class="font-bold min-w-[40px] text-center"></span>
+                    <span>÷</span>
+                    <span id="step2-divisor" class="font-bold min-w-[30px] text-center"></span>
+                    <span>=</span>
+                    <input type="text" inputmode="numeric" pattern="[0-9]*" id="step2-ans" class="input-box" placeholder="?">
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center">
+            <button onclick="checkSteps()" id="check-btn" class="w-full sm:w-auto px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-xl sm:text-2xl font-bold shadow-lg transition-transform transform hover:scale-105">
+                ตรวจคำตอบ
+            </button>
+            <button onclick="nextQuestion()" id="next-btn" class="hidden w-full sm:w-auto px-8 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-full text-xl sm:text-2xl font-bold shadow-lg transition-transform transform hover:scale-105">
+                พลาดแล้ว! ไปข้อต่อไป ➔
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal เลือกกล่องสุ่มรางวัล 3 ใบ -->
+    <div id="reward-modal" class="hidden fixed inset-0 bg-indigo-900 bg-opacity-95 flex flex-col items-center justify-center z-50 p-4">
+        <h2 id="reward-title" class="text-3xl sm:text-5xl font-bold text-white mb-8 text-center leading-tight">เก่งมาก!<br><span class="text-yellow-300 text-2xl sm:text-4xl">เลือกเปิดกล่องสมบัติ 1 ใบ</span></h2>
+        
+        <!-- คอนเทนเนอร์กล่อง 3 ใบ -->
+        <div id="boxes-container" class="flex justify-center items-center gap-4 sm:gap-8 mb-8">
+            <div onclick="chooseBox(1)" class="gift-box gift-bounce text-[70px] sm:text-[100px] cursor-pointer drop-shadow-2xl" style="animation-delay: 0s">🎁</div>
+            <div onclick="chooseBox(2)" class="gift-box gift-bounce text-[70px] sm:text-[100px] cursor-pointer drop-shadow-2xl" style="animation-delay: 0.3s">🎁</div>
+            <div onclick="chooseBox(3)" class="gift-box gift-bounce text-[70px] sm:text-[100px] cursor-pointer drop-shadow-2xl" style="animation-delay: 0.6s">🎁</div>
+        </div>
+
+        <!-- ผลลัพธ์หลังเปิดกล่อง -->
+        <div id="reward-result" class="hidden flex flex-col items-center p-6 bg-white rounded-2xl shadow-2xl max-w-sm w-full text-center relative" style="animation: pop 0.4s ease-out;">
+            
+            <!-- ไอคอนสัตว์น้อยแบบสุ่ม -->
+            <div id="reward-animal" class="text-7xl sm:text-8xl mb-2 animate-bounce">🐰</div>
+            
+            <p class="text-xl text-gray-500 font-bold mb-0 mt-2">หนูเปิดได้คะแนน</p>
+            <h3 id="reward-score-text" class="text-6xl font-bold text-green-500 mb-4">+50</h3>
+            
+            <div id="reward-effect-box" class="bg-blue-50 border-2 border-blue-200 p-3 rounded-lg w-full mb-6">
+                <p id="reward-effect-text" class="text-xl font-bold text-blue-700"></p>
+            </div>
+
+            <button onclick="nextQuestion()" class="w-full px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-2xl font-bold shadow-lg transform transition hover:scale-105">
+                ลุยข้อต่อไป!
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal จบเกม (Game Over) -->
+    <div id="gameover-modal" class="hidden fixed inset-0 bg-black bg-opacity-90 flex flex-col items-center justify-center z-50 p-4 text-center">
+        <h2 class="text-6xl font-bold text-red-500 mb-4 animate-bounce">จบเกม!</h2>
+        <p class="text-2xl text-white mb-2">พลังชีวิตของหนูหมดแล้ว 💔</p>
+        <div class="bg-white p-6 rounded-xl my-6">
+            <p class="text-xl text-gray-600 font-bold">คะแนนรวมที่ทำได้</p>
+            <p class="text-6xl text-yellow-500 font-black" id="final-score">0</p>
+        </div>
+        <button onclick="resetGame()" class="px-8 py-4 bg-green-500 hover:bg-green-600 text-white rounded-full text-2xl font-bold shadow-lg transform transition hover:scale-110 border-4 border-green-300">
+            🎮 เล่นอีกครั้ง
+        </button>
+    </div>
+
+    <script>
+        let currentProblem = {};
+        let score = 0;
+        let lives = 3;
+        let hints = 3;
+        let timerInterval;
+        let maxTimeForCurrentScore = 30;
+        let timeLeft;
+        let timeModifier = 'normal'; 
+        let audioCtx;
+
+        // อาร์เรย์ของสัตว์น่ารักๆ ที่จะโผล่มาจากกล่อง
+        const cuteAnimals = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐧', '🐥', '🦉', '🦄', '🦖', '🐢', '🐙'];
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            initAudio();
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (type === 'correct' || type === 'gift') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, audioCtx.currentTime); 
+                osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1); 
+                osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2); 
+                if(type==='gift') osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.3);
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+            } else if (type === 'wrong' || type === 'timeout') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.4);
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+            }
+        }
+
+        function updateLivesUI() {
+            let str = '';
+            for(let i=0; i<3; i++) str += (i < lives) ? '❤️' : '🖤';
+            document.getElementById('lives-display').innerText = str;
+        }
+
+        function loseLife() {
+            lives--;
+            updateLivesUI();
+            if (lives <= 0) {
+                clearInterval(timerInterval);
+                setTimeout(() => {
+                    document.getElementById('final-score').innerText = score;
+                    document.getElementById('gameover-modal').classList.remove('hidden');
+                }, 1000);
+                return true; 
+            }
+            return false; 
+        }
+
+        function useHint() {
+            if (hints > 0 && !document.getElementById('step1-ans').disabled) {
+                hints--;
+                document.getElementById('hint-btn').innerText = `💡 คำใบ้ (${hints})`;
+                const step1Input = document.getElementById('step1-ans');
+                step1Input.value = currentProblem.answer;
+                step1Input.classList.add('ring-4', 'ring-yellow-400');
+                if (hints === 0) document.getElementById('hint-btn').classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            let baseTime = Math.max(15, 30 - Math.floor(score / 100) * 2);
+            const eventMsg = document.getElementById('event-msg');
+            eventMsg.classList.add('hidden');
+
+            if (timeModifier === 'fast') {
+                baseTime = Math.max(5, Math.floor(baseTime / 2));
+                eventMsg.innerText = "⚡ โดนแกล้ง! เวลาน้อยลง รีบตอบเลย!";
+                eventMsg.className = "text-center text-red-600 font-bold text-xl mb-2 animate-pulse";
+                eventMsg.classList.remove('hidden');
+            } else if (timeModifier === 'slow') {
+                baseTime += 10;
+                eventMsg.innerText = "🐢 โชคดี! ข้อนี้มีเวลาให้คิดนานขึ้น!";
+                eventMsg.className = "text-center text-green-600 font-bold text-xl mb-2 animate-pulse";
+                eventMsg.classList.remove('hidden');
+            }
+            
+            timeModifier = 'normal';
+            maxTimeForCurrentScore = baseTime;
+            timeLeft = maxTimeForCurrentScore;
+            updateTimerUI();
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerUI();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleTimeout();
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            document.getElementById('time-text').innerText = timeLeft;
+            const timeBar = document.getElementById('time-bar');
+            const percentage = (timeLeft / maxTimeForCurrentScore) * 100;
+            timeBar.style.width = `${percentage}%`;
+            if (percentage > 50) timeBar.className = "bg-green-500 h-3 rounded-full";
+            else if (percentage > 25) timeBar.className = "bg-yellow-400 h-3 rounded-full";
+            else timeBar.className = "bg-red-500 h-3 rounded-full";
+        }
+
+        function handleTimeout() {
+            playSound('timeout');
+            document.getElementById('event-msg').innerText = "⏱️ หมดเวลา! เสีย 1 หัวใจ";
+            document.getElementById('event-msg').className = "text-center text-red-500 font-bold text-xl mb-2 animate-pulse";
+            document.getElementById('event-msg').classList.remove('hidden');
+            
+            document.querySelectorAll('input').forEach(input => input.disabled = true);
+            document.getElementById('check-btn').classList.add('hidden');
+            if (!loseLife()) document.getElementById('next-btn').classList.remove('hidden');
+        }
+
+        function showRewardModal() {
+            document.getElementById('reward-modal').classList.remove('hidden');
+            document.getElementById('reward-title').classList.remove('hidden');
+            document.getElementById('boxes-container').classList.remove('hidden');
+            document.getElementById('reward-result').classList.add('hidden');
+        }
+
+        function chooseBox(boxNumber) {
+            playSound('gift');
+            
+            document.getElementById('reward-title').classList.add('hidden');
+            document.getElementById('boxes-container').classList.add('hidden');
+            
+            // สุ่มสัตว์น้อย
+            const randomAnimal = cuteAnimals[Math.floor(Math.random() * cuteAnimals.length)];
+            document.getElementById('reward-animal').innerText = randomAnimal;
+            
+            // สุ่มคะแนน 1 - 50
+            const randomScore = Math.floor(Math.random() * 50) + 1;
+            score += randomScore;
+            document.getElementById('score').innerText = score;
+            document.getElementById('reward-score-text').innerText = `+${randomScore}`;
+            
+            // สุ่ม Event ป่วนๆ
+            const rand = Math.random();
+            const effectEl = document.getElementById('reward-effect-text');
+            const effectBox = document.getElementById('reward-effect-box');
+            
+            if (rand < 0.20 && lives < 3) {
+                lives++;
+                updateLivesUI();
+                effectEl.innerText = "💖 ว้าว! ได้พลังชีวิตเพิ่ม 1 ดวง!";
+                effectBox.className = "bg-pink-50 border-2 border-pink-200 p-3 rounded-lg w-full mb-6";
+                effectEl.className = "text-xl font-bold text-pink-600";
+            } else if (rand < 0.35) {
+                timeModifier = 'fast';
+                effectEl.innerText = "⚡ โดนแกล้ง! ข้อต่อไปเวลาจะเดินเร็วติดจรวด!";
+                effectBox.className = "bg-red-50 border-2 border-red-200 p-3 rounded-lg w-full mb-6";
+                effectEl.className = "text-xl font-bold text-red-600";
+            } else if (rand < 0.50) {
+                timeModifier = 'slow';
+                effectEl.innerText = "🐢 โชคดีสุดๆ! ข้อต่อไปบวกเวลาเพิ่มให้คิดนานๆ";
+                effectBox.className = "bg-green-50 border-2 border-green-200 p-3 rounded-lg w-full mb-6";
+                effectEl.className = "text-xl font-bold text-green-600";
+            } else {
+                effectEl.innerText = "✨ เยี่ยมมาก! ลุยเก็บคะแนนข้อต่อไปกันเลย";
+                effectBox.className = "bg-blue-50 border-2 border-blue-200 p-3 rounded-lg w-full mb-6";
+                effectEl.className = "text-xl font-bold text-blue-700";
+            }
+            
+            document.getElementById('reward-result').classList.remove('hidden');
+        }
+
+        function generateProblem() {
+            const m1 = Math.floor(Math.random() * 8) + 2; 
+            const m2 = Math.floor(Math.random() * 8) + 2;
+            const p = m1 * m2;
+            currentProblem = { dividend: p, divisor: m1, answer: m2 };
+
+            document.getElementById('problem-display').innerText = `${p} ÷ ${m1} = ⬜`;
+            document.getElementById('step1-divisor').innerText = m1;
+            document.getElementById('step1-dividend').innerText = p;
+            document.getElementById('step2-dividend').innerText = p;
+            document.getElementById('step2-divisor').innerText = m1;
+
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.value = '';
+                input.disabled = false;
+                input.classList.remove('correct-anim', 'wrong-anim', 'ring-4', 'ring-yellow-400');
+            });
+
+            document.getElementById('check-btn').classList.remove('hidden');
+            document.getElementById('next-btn').classList.add('hidden');
+
+            startTimer();
+            if(window.innerWidth > 768) document.getElementById('step1-ans').focus();
+        }
+
+        function checkSteps() {
+            const s1 = document.getElementById('step1-ans').value;
+            const s2 = document.getElementById('step2-ans').value;
+            if(s1 === "" || s2 === "") return;
+
+            const inputs = { s1: parseInt(s1), s2: parseInt(s2) };
+            const p = currentProblem;
+            let allCorrect = true;
+
+            if (!validateField('step1-ans', inputs.s1 === p.answer)) allCorrect = false;
+            if (!validateField('step2-ans', inputs.s2 === p.answer)) allCorrect = false;
+
+            if (allCorrect) {
+                clearInterval(timerInterval);
+                playSound('correct');
+                document.querySelectorAll('input').forEach(input => input.disabled = true);
+                
+                setTimeout(() => {
+                    showRewardModal();
+                }, 600);
+            } else {
+                playSound('wrong');
+                if(loseLife()) {
+                    document.querySelectorAll('input').forEach(input => input.disabled = true);
+                    document.getElementById('check-btn').classList.add('hidden');
+                }
+            }
+        }
+
+        function validateField(id, isCorrect) {
+            const el = document.getElementById(id);
+            el.classList.remove('correct-anim', 'wrong-anim');
+            void el.offsetWidth; 
+            if (isCorrect) { el.classList.add('correct-anim'); return true; } 
+            else { if (el.value !== "") el.classList.add('wrong-anim'); return false; }
+        }
+
+        function nextQuestion() {
+            document.getElementById('reward-modal').classList.add('hidden');
+            generateProblem();
+        }
+
+        function resetGame() {
+            score = 0; lives = 3; hints = 3; timeModifier = 'normal';
+            document.getElementById('score').innerText = score;
+            document.getElementById('hint-btn').innerText = `💡 คำใบ้ (3)`;
+            document.getElementById('hint-btn').classList.remove('opacity-50', 'cursor-not-allowed');
+            updateLivesUI();
+            document.getElementById('gameover-modal').classList.add('hidden');
+            generateProblem();
+        }
+
+        window.onload = resetGame;
+    </script>
+</body>
+</html>
